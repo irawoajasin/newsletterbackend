@@ -18,29 +18,36 @@ export default async function handler(req, res) {
       `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
     ).toString("base64");
 
-    const mailjetRes = await fetch(
-      `https://api.mailjet.com/v3.1/contactslist/${process.env.MJ_LIST_ID}/managecontact`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${auth}`,
-        },
-        body: JSON.stringify({
-          Contacts: [
-            {
-              Email: email,
-              Name: name,
-            },
-          ],
-          Action: "addnoforce",
-        }),
-      }
-    );
+    // create a new contact
+    await fetch("https://api.mailjet.com/v3/REST/contact", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify({
+        Email: email,
+        Name: name,
+        IsExcludedFromCampaigns: false,
+      }),
+    });
 
-    const result = await mailjetRes.json();
+    // add to the list
+    const listRes = await fetch("https://api.mailjet.com/v3/REST/listrecipient", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify({
+        ContactAlt: email,
+        ListID: process.env.MJ_LIST_ID,
+      }),
+    });
 
-    if (!mailjetRes.ok) {
+    const result = await listRes.json();
+
+    if (!listRes.ok) {
       return res.status(400).json({
         message: "Mailjet error",
         details: result,
@@ -50,7 +57,10 @@ export default async function handler(req, res) {
     return res.status(200).json({ message: "Success" });
 
   } catch (error) {
-    console.error("SERVER ERROR:", error);
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.error(error);
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 }
