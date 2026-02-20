@@ -1,4 +1,8 @@
-app.post("/subscribe", async (req, res) => {
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method Not Allowed" });
+  }
+
   const { name, email } = req.body;
 
   if (!name || !email) {
@@ -6,10 +10,8 @@ app.post("/subscribe", async (req, res) => {
   }
 
   try {
-    const LIST_ID = process.env.MJ_LIST_ID;
-
     const response = await fetch(
-      `https://api.mailjet.com/v3.1/contactslist/${LIST_ID}/managecontact`,
+      `https://api.mailjet.com/v3.1/contactslist/${process.env.MJ_LIST_ID}/managecontact`,
       {
         method: "POST",
         headers: {
@@ -24,10 +26,10 @@ app.post("/subscribe", async (req, res) => {
           Contacts: [
             {
               Email: email,
-              Name: name
-            }
+              Name: name,
+            },
           ],
-          Action: "addnoforce" 
+          Action: "addnoforce",
         }),
       }
     );
@@ -43,8 +45,7 @@ app.post("/subscribe", async (req, res) => {
 
     return res.status(200).json({ message: "Success" });
 
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
     return res.status(500).json({ message: "Server error" });
   }
-});
+}
