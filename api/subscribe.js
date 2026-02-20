@@ -52,8 +52,18 @@ export default async function handler(req, res) {
     const result = await listRes.json();
 
     if (!listRes.ok) {
+      const errorMessage =
+        result?.ErrorMessage || JSON.stringify(result);
+    
+      // If duplicate
+      if (errorMessage.toLowerCase().includes("already")) {
+        return res.status(200).json({
+          message: "You're already subscribed!",
+        });
+      }
+    
       return res.status(400).json({
-        message: "Mailjet error",
+        message: "There was an issue subscribing. Please try again.",
         details: result,
       });
     }
