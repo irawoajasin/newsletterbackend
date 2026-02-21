@@ -45,7 +45,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         ContactAlt: email,
-        ListID: process.env.MJ_LIST_ID,
+        ListID: process.env.MJ_PENDING_LIST_ID,
+        //ListID: process.env.MJ_LIST_ID,
       }),
     });
 
