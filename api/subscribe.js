@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
     ).toString("base64");
 
-    // create a new contact
+    // 1️⃣ Create contact
     await fetch("https://api.mailjet.com/v3/REST/contact", {
       method: "POST",
       headers: {
@@ -36,40 +36,74 @@ export default async function handler(req, res) {
       }),
     });
 
-    // add to the list
-    const listRes = await fetch("https://api.mailjet.com/v3/REST/listrecipient", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      },
-      body: JSON.stringify({
-        ContactAlt: email,
-        //ListID: process.env.MJ_PENDING_LIST_ID,
-        ListID: process.env.MJ_LIST_ID,
-      }),
-    });
+    // 2️⃣ Add to list
+    const listRes = await fetch(
+      "https://api.mailjet.com/v3/REST/listrecipient",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${auth}`,
+        },
+        body: JSON.stringify({
+          ContactAlt: email,
+          ListID: process.env.MJ_LIST_ID,
+        }),
+      }
+    );
 
     const result = await listRes.json();
 
     if (!listRes.ok) {
       const errorMessage =
         result?.ErrorMessage || JSON.stringify(result);
-    
-      // If duplicate
+
       if (errorMessage.toLowerCase().includes("already")) {
         return res.status(200).json({
           message: "You're already subscribed!",
         });
       }
-    
+
       return res.status(400).json({
         message: "There was an issue subscribing. Please try again.",
         details: result,
       });
     }
 
-    return res.status(200).json({ message: "You're on the list, thank you for joining us!" });
+    // 3️⃣ Send Welcome Email (NEW PART)
+    await fetch("https://api.mailjet.com/v3.1/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify({
+        Messages: [
+          {
+            From: {
+              Email: "info@sojourners4justice.press",
+              Name: "SJP",
+            },
+            To: [
+              {
+                Email: email,
+                Name: name,
+              },
+            ],
+            TemplateID: 7776244, // 🔥 replace if needed
+            TemplateLanguage: true,
+            Subject: "Sojourners for Justice Press Newsletter",
+            Variables: {
+              name: name || "Reader",
+            },
+          },
+        ],
+      }),
+    });
+
+    return res
+      .status(200)
+      .json({ message: "You're on the list, thank you for joining us!" });
 
   } catch (error) {
     console.error(error);
