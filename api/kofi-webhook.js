@@ -41,6 +41,7 @@ export default async function handler(req, res) {
     const payload = req.body?.data
       ? JSON.parse(req.body.data)
       : req.body;
+    console.log("Webhook payload:", payload);
 
     const email = payload.email;
     const name = payload.from_name || "Member";
@@ -91,8 +92,6 @@ export default async function handler(req, res) {
       );
 
     }
-
-    console.log("Webhook payload:", payload);
 
     return res.status(200).json({ success: true });
 
