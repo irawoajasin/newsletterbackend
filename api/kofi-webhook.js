@@ -1,11 +1,11 @@
 // MEMBERSHIP AUTOMATION
 
 const tierLists = {
-  "Tier 1": process.env.MJ_I_AM_BUT_ONE_ID,
-  "Tier 2": process.env.MJ_SHADOW_SIBLINGS_ID,
-  "Tier 3": process.env.MJ_AUTHOR_AMPLIFIER_ID,
-  "Tier 4": process.env.MJ_READING_REDEFINER_ID,
-  "Tier 5": process.env.MJ_CO_CONSPIRATOR_ID
+  "I Am But One": process.env.MJ_I_AM_BUT_ONE_ID,
+  "Shadow Siblings": process.env.MJ_SHADOW_SIBLINGS_ID,
+  "Author Amplifier": process.env.MJ_AUTHOR_AMPLIFIER_ID,
+  "Reading Redefiner": process.env.MJ_READING_REDEFINER_ID,
+  "Co-Conspirator": process.env.MJ_CO_CONSPIRATOR_ID
 };
 
 async function mailjetFetch(url, method, body) {
