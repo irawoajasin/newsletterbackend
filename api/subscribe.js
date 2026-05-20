@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
     ).toString("base64");
 
-    // 1️⃣ Create contact
+    // create a new contact
     await fetch("https://api.mailjet.com/v3/REST/contact", {
       method: "POST",
       headers: {
@@ -36,7 +36,7 @@ export default async function handler(req, res) {
       }),
     });
 
-    // 2️⃣ Add to list
+    // add contact to list
     const listRes = await fetch(
       "https://api.mailjet.com/v3/REST/listrecipient",
       {
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3️⃣ Send Welcome Email (NEW PART)
+    // send the welcome email
     await fetch("https://api.mailjet.com/v3.1/send", {
       method: "POST",
       headers: {
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
                 Name: name,
               },
             ],
-            TemplateID: 7776244, // 🔥 replace if needed
+            TemplateID: 7776244,
             TemplateLanguage: true,
             Subject: "Sojourners for Justice Press Newsletter",
             Variables: {
