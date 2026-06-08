@@ -1,3 +1,15 @@
+async function readJsonSafe(response) {
+  const text = await response.text();
+
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -12,18 +24,28 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { name, email } = req.body;
+    const { name, email } = req.body || {};
 
     if (!name || !email) {
-      return res.status(400).json({ message: "Missing fields" });
+      return res.status(400).json({ message: "Missing name or email" });
+    }
+
+    if (
+      !process.env.MJ_APIKEY_PUBLIC ||
+      !process.env.MJ_APIKEY_PRIVATE ||
+      !process.env.MJ_LIST_ID
+    ) {
+      return res.status(500).json({
+        message: "Missing Mailjet environment variables",
+      });
     }
 
     const auth = Buffer.from(
       `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
     ).toString("base64");
 
-    // create a new contact
-    await fetch("https://api.mailjet.com/v3/REST/contact", {
+    // Create or update contact
+    const contactRes = await fetch("https://api.mailjet.com/v3/REST/contact", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -36,27 +58,38 @@ export default async function handler(req, res) {
       }),
     });
 
-    // add contact to list
-    const listRes = await fetch(
-      "https://api.mailjet.com/v3/REST/listrecipient",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${auth}`,
-        },
-        body: JSON.stringify({
-          ContactAlt: email,
-          ListID: process.env.MJ_LIST_ID,
-        }),
-      }
-    );
+    const contactResult = await readJsonSafe(contactRes);
 
-    const result = await listRes.json();
+    if (!contactRes.ok) {
+      const errorMessage =
+        contactResult?.ErrorMessage || JSON.stringify(contactResult);
+
+      if (!errorMessage.toLowerCase().includes("already")) {
+        return res.status(400).json({
+          message: "Could not create Mailjet contact",
+          details: contactResult,
+        });
+      }
+    }
+
+    // Add contact to newsletter list
+    const listRes = await fetch("https://api.mailjet.com/v3/REST/listrecipient", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify({
+        ContactAlt: email,
+        ListID: Number(process.env.MJ_LIST_ID),
+      }),
+    });
+
+    const listResult = await readJsonSafe(listRes);
 
     if (!listRes.ok) {
       const errorMessage =
-        result?.ErrorMessage || JSON.stringify(result);
+        listResult?.ErrorMessage || JSON.stringify(listResult);
 
       if (errorMessage.toLowerCase().includes("already")) {
         return res.status(200).json({
@@ -65,13 +98,13 @@ export default async function handler(req, res) {
       }
 
       return res.status(400).json({
-        message: "There was an issue subscribing. Please try again.",
-        details: result,
+        message: "Could not add contact to newsletter list",
+        details: listResult,
       });
     }
 
-    // send the welcome email
-    await fetch("https://api.mailjet.com/v3.1/send", {
+    // Send welcome email
+    const sendRes = await fetch("https://api.mailjet.com/v3.1/send", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -101,12 +134,22 @@ export default async function handler(req, res) {
       }),
     });
 
-    return res
-      .status(200)
-      .json({ message: "You're on the list, thank you for joining us!" });
+    const sendResult = await readJsonSafe(sendRes);
 
+    if (!sendRes.ok) {
+      return res.status(200).json({
+        message:
+          "You're subscribed, but there was an issue sending the welcome email.",
+        details: sendResult,
+      });
+    }
+
+    return res.status(200).json({
+      message: "You're on the list, thank you for joining us!",
+    });
   } catch (error) {
-    console.error(error);
+    console.error("Server error:", error);
+
     return res.status(500).json({
       message: "Server error",
       error: error.message,
